@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a1d17">
+<title>AirsoftETU</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one column "field panel" — status strip, fire selector, two timing dials, battery, log. */
+:root{
+  --bg:#1a1d17;        /* olive-black, like a receiver finish */
+  --panel:#23271f;
+  --line:#353a2f;
+  --fg:#e8e3d3;        /* sand */
+  --muted:#9a9884;
+  --accent:#f08a24;    /* signal orange */
+  --safe:#7fb069; --semi:#e8e3d3; --burst:#f0b429; --auto:#e5533d;
+  --display:"Chakra Petch", "Arial Narrow", system-ui, sans-serif;
+  --body:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 var(--body);
+  padding:max(16px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom));}
+.wrap{max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font:700 1.5rem/1 var(--display);letter-spacing:.04em;margin:0;text-transform:uppercase}
+h1 small{display:block;font:500 .72rem var(--body);letter-spacing:.12em;color:var(--muted);margin-top:4px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:6px}
+.dot.on{background:var(--safe);box-shadow:0 0 8px var(--safe)}
+.conn{font:500 .8rem var(--body);color:var(--muted);white-space:nowrap}
+section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.label{font:600 .72rem var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+button{font:600 .95rem var(--body);color:var(--fg);background:transparent;border:1px solid var(--line);
+  border-radius:8px;padding:12px 14px;cursor:pointer;min-height:48px;touch-action:manipulation}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:active{transform:translateY(1px)}
+button:disabled{opacity:.4;cursor:not-allowed}
+.primary{background:var(--accent);border-color:var(--accent);color:#1a1d17}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>*{flex:1 1 0;min-width:0}
+input[type=text],input[type=password],input[type=number]{font:500 1rem var(--mono);color:var(--fg);background:var(--bg);
+  border:1px solid var(--line);border-radius:8px;padding:12px;min-height:48px;width:100%}
+/* fire selector */
+.selector{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.mode{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 4px}
+.mode b{font:700 1.35rem/1 var(--display)}
+.mode span{font:500 .68rem var(--body);letter-spacing:.1em;color:var(--muted)}
+.mode[data-m=safe] b{color:var(--safe)} .mode[data-m=semi] b{color:var(--semi)}
+.mode[data-m=burst] b{color:var(--burst)} .mode[data-m=auto] b{color:var(--auto)}
+.mode.active{background:var(--bg);border-color:currentColor}
+.mode[data-m=safe].active{color:var(--safe)} .mode[data-m=semi].active{color:var(--semi)}
+.mode[data-m=burst].active{color:var(--burst)} .mode[data-m=auto].active{color:var(--auto)}
+.burstcount{display:flex;align-items:center;gap:10px}
+.burstcount output{font:700 1.3rem var(--display);min-width:2ch;text-align:center}
+.burstcount button{flex:0 0 48px;padding:0}
+/* dials */
+.dial{display:flex;flex-direction:column;gap:8px}
+.dialhead{display:flex;justify-content:space-between;align-items:baseline}
+.val{font:700 1.8rem/1 var(--display);font-variant-numeric:tabular-nums}
+.val small{font:500 .8rem var(--body);color:var(--muted);margin-left:3px}
+.stepper{display:grid;grid-template-columns:48px 1fr 48px;gap:10px;align-items:center}
+.stepper button{padding:0;font-size:1.3rem}
+input[type=range]{width:100%;accent-color:var(--accent);height:32px}
+.hint{font-size:.82rem;color:var(--muted);margin:0}
+.rof{display:flex;justify-content:space-between;align-items:baseline;border-top:1px dashed var(--line);padding-top:10px}
+.rof .val{color:var(--accent)}
+/* battery */
+.batt{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.cells{font:500 .82rem var(--mono);color:var(--muted)}
+.low{color:var(--auto)}
+.log{font:500 .78rem/1.5 var(--mono);color:var(--muted);background:var(--bg);border-radius:8px;padding:10px;
+  max-height:140px;overflow:auto;white-space:pre-wrap;word-break:break-word;margin:0}
+.banner{border:1px solid var(--auto);color:var(--fg);border-radius:10px;padding:12px;font-size:.9rem}
+details summary{cursor:pointer;list-style:none}
+.offline section.needs{opacity:.55}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap offline" id="app">
+  <header>
+    <h1>AirsoftETU<small>Controlo de disparo · Bluetooth</small></h1>
+    <span class="conn"><span class="dot" id="dot"></span><span id="connText">Desligado</span></span>
+  </header>
+
+  <div class="banner" id="noBt" hidden>
+    Este browser não suporta Bluetooth. No Android abre esta página no <b>Chrome</b>, através de um endereço <b>https://</b>.
+  </div>
+
+  <section>
+    <div class="row">
+      <button class="primary" id="btnConnect">Ligar à réplica</button>
+      <button id="btnDisconnect" hidden>Desligar</button>
+    </div>
+    <div class="row">
+      <input type="password" id="pin" inputmode="numeric" maxlength="8" placeholder="PIN" autocomplete="off" aria-label="PIN">
+      <button id="btnUnlock" disabled>Desbloquear</button>
+    </div>
+    <p class="hint" id="lockText">Liga-te e desbloqueia com o PIN para alterar valores.</p>
+  </section>
+
+  <section class="needs">
+    <span class="label">Seletor de tiro</span>
+    <div class="selector" role="radiogroup" aria-label="Modo de tiro">
+      <button class="mode" data-m="safe" role="radio"><b>S</b><span>SAFE</span></button>
+      <button class="mode active" data-m="semi" role="radio"><b>1</b><span>SEMI</span></button>
+      <button class="mode" data-m="burst" role="radio"><b id="burstGlyph">3</b><span>BURST</span></button>
+      <button class="mode" data-m="auto" role="radio"><b>F</b><span>AUTO</span></button>
+    </div>
+    <div class="burstcount">
+      <span class="label" style="flex:1">Tiros por rajada</span>
+      <button id="burstMinus" aria-label="Menos tiros">−</button>
+      <output id="burstVal">3</output>
+      <button id="burstPlus" aria-label="Mais tiros">+</button>
+    </div>
+  </section>
+
+  <section class="needs">
+    <div class="dial">
+      <div class="dialhead"><span class="label">Dwell · motor ligado por tiro</span><span class="val"><span id="dwellVal">45</span><small>ms</small></span></div>
+      <div class="stepper">
+        <button id="dwellMinus" aria-label="Menos 5 ms">−</button>
+        <input type="range" id="dwell" min="10" max="200" step="1" value="45" aria-label="Dwell em ms">
+        <button id="dwellPlus" aria-label="Mais 5 ms">+</button>
+      </div>
+      <p class="hint">Afina em SEMI até cada tiro disparar uma só BB, sem o gearbox ficar a meio.</p>
+    </div>
+    <div class="dial">
+      <div class="dialhead"><span class="label">Delay · pausa entre tiros</span><span class="val"><span id="delayVal">0</span><small>ms</small></span></div>
+      <div class="stepper">
+        <button id="delayMinus" aria-label="Menos 10 ms">−</button>
+        <input type="range" id="delay" min="0" max="1000" step="5" value="0" aria-label="Delay em ms">
+        <button id="delayPlus" aria-label="Mais 10 ms">+</button>
+      </div>
+      <p class="hint">Só em BURST e AUTO. 0 = motor contínuo, cadência máxima.</p>
+    </div>
+    <div class="rof"><span class="label">Cadência estimada</span><span class="val"><span id="rofVal">—</span><small id="rofUnit">BB/s</small></span></div>
+  </section>
+
+  <section class="needs">
+    <div class="batt">
+      <div><span class="label">Bateria</span><div class="val"><span id="vbat">—</span><small>V</small></div></div>
+      <div class="cells" id="cells">3S LiPo</div>
+    </div>
+    <div class="row">
+      <input type="number" id="lowbatt" step="0.1" min="0" max="16" value="10.5" aria-label="Corte de bateria em volts">
+      <button id="btnLowbatt">Definir corte</button>
+    </div>
+    <p class="hint">Corte recomendado 3S: 10.5 V (3.5 V/célula). 0 desliga o corte.</p>
+    <button id="btnStatus">Atualizar estado</button>
+  </section>
+
+  <section>
+    <details>
+      <summary class="label">Registo de comunicação ▾</summary>
+      <pre class="log" id="log"></pre>
+    </details>
+  </section>
+</div>
+
+<script>
+const NUS = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+const RX  = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; // phone -> board
+const TX  = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; // board -> phone
+const $ = id => document.getElementById(id);
+const enc = new TextEncoder(), dec = new TextDecoder();
+let device = null, rxChar = null, inbuf = "", queue = Promise.resolve(), unlocked = false;
+const state = {mode:"semi", burst:3, dwell:45, delay:0, lowbatt:10.5, vbat:null};
+
+function log(s){ const l=$("log"); l.textContent += s + "\n"; l.scrollTop = l.scrollHeight; }
+function store(k,v){ try{ localStorage.setItem(k,v) }catch(e){} }
+function load(k){ try{ return localStorage.getItem(k) }catch(e){ return null } }
+
+if(!navigator.bluetooth){ $("noBt").hidden = false; $("btnConnect").disabled = true; }
+const savedPin = load("etu-pin"); if(savedPin) $("pin").value = savedPin;
+
+/* ---------- sending: one write at a time, max 20 bytes per packet ---------- */
+function send(cmd){
+  if(!rxChar) return Promise.resolve();
+  log("> " + cmd);
+  const data = enc.encode(cmd + "\n");
+  queue = queue.then(async () => {
+    for(let i=0;i<data.length;i+=20){
+      const part = data.slice(i,i+20);
+      if(rxChar.writeValueWithoutResponse) await rxChar.writeValueWithoutResponse(part);
+      else await rxChar.writeValue(part);
+    }
+  }).catch(e => log("! erro ao enviar: " + e.message));
+  return queue;
+}
+
+/* ---------- receiving: board sends 20-byte chunks, lines end with \n ---------- */
+function onData(ev){
+  inbuf += dec.decode(ev.target.value);
+  let i;
+  while((i = inbuf.indexOf("\n")) >= 0){
+    const line = inbuf.slice(0,i).trim(); inbuf = inbuf.slice(i+1);
+    if(line) handleLine(line);
+  }
+}
+function handleLine(line){
+  log("< " + line);
+  const m = line.match(/mode=(\w+) burst=(\d+) dwell=(\d+)ms delay=(\d+)ms lowbatt=([\d.]+) vbat=([\d.]+)V/);
+  if(m){
+    Object.assign(state,{mode:m[1],burst:+m[2],dwell:+m[3],delay:+m[4],lowbatt:+m[5],vbat:+m[6]});
+    render();
+  }
+  if(line.startsWith("OK unlocked")){ unlocked = true; store("etu-pin",$("pin").value); renderLock(); }
+  if(line.startsWith("ERR wrong PIN")){ unlocked = false; renderLock("PIN errado."); }
+  if(line.startsWith("ERR locked")){ unlocked = false; renderLock("Desbloqueia com o PIN primeiro."); }
+  if(line.startsWith("LOW BATTERY")) renderLock("Bateria baixa: a réplica não dispara.");
+}
+
+/* ---------- connection ---------- */
+async function connect(){
+  try{
+    device = await navigator.bluetooth.requestDevice({
+      filters:[{namePrefix:"AirsoftETU"}], optionalServices:[NUS]});
+    device.addEventListener("gattserverdisconnected", onDisconnect);
+    $("connText").textContent = "A ligar…";
+    const server = await device.gatt.connect();
+    const svc = await server.getPrimaryService(NUS);
+    rxChar = await svc.getCharacteristic(RX);
+    const tx = await svc.getCharacteristic(TX);
+    await tx.startNotifications();
+    tx.addEventListener("characteristicvaluechanged", onData);
+    $("dot").classList.add("on"); $("connText").textContent = "Ligado";
+    $("btnConnect").hidden = true; $("btnDisconnect").hidden = false; $("btnUnlock").disabled = false;
+    $("app").classList.remove("offline");
+    log("ligado a " + (device.name || "AirsoftETU"));
+    if($("pin").value) await send("UNLOCK " + $("pin").value);
+    await send("STATUS");
+  }catch(e){
+    $("connText").textContent = "Desligado";
+    if(e.name !== "NotFoundError") log("! " + e.message);
+  }
+}
+function onDisconnect(){
+  rxChar = null; unlocked = false; inbuf = "";
+  $("dot").classList.remove("on"); $("connText").textContent = "Desligado";
+  $("btnConnect").hidden = false; $("btnDisconnect").hidden = true; $("btnUnlock").disabled = true;
+  $("app").classList.add("offline"); renderLock(); log("desligado");
+}
+$("btnConnect").onclick = connect;
+$("btnDisconnect").onclick = () => device && device.gatt.connected && device.gatt.disconnect();
+$("btnUnlock").onclick = () => $("pin").value && send("UNLOCK " + $("pin").value);
+$("btnStatus").onclick = () => send("STATUS");
+
+/* ---------- controls ---------- */
+document.querySelectorAll(".mode").forEach(b => b.onclick = () => {
+  const m = b.dataset.m;
+  state.mode = m; render();
+  send(m === "burst" ? "MODE BURST " + state.burst : "MODE " + m.toUpperCase());
+});
+function setBurst(n){
+  state.burst = Math.max(2, Math.min(10, n)); render();
+  if(state.mode === "burst") send("MODE BURST " + state.burst);
+}
+$("burstMinus").onclick = () => setBurst(state.burst - 1);
+$("burstPlus").onclick  = () => setBurst(state.burst + 1);
+
+function bindDial(key, cmd, min, max, step){
+  const r = $(key);
+  r.oninput  = () => { state[key] = +r.value; render(); };
+  r.onchange = () => send(cmd + " " + state[key]);          // send when the finger lifts
+  $(key+"Minus").onclick = () => { state[key] = Math.max(min, state[key]-step); render(); send(cmd+" "+state[key]); };
+  $(key+"Plus").onclick  = () => { state[key] = Math.min(max, state[key]+step); render(); send(cmd+" "+state[key]); };
+}
+bindDial("dwell","DWELL",10,200,5);
+bindDial("delay","DELAY",0,1000,10);
+$("btnLowbatt").onclick = () => send("LOWBATT " + (+$("lowbatt").value).toFixed(1));
+
+/* ---------- render ---------- */
+function render(){
+  document.querySelectorAll(".mode").forEach(b => {
+    const on = b.dataset.m === state.mode;
+    b.classList.toggle("active", on); b.setAttribute("aria-checked", on);
+  });
+  $("burstVal").textContent = state.burst; $("burstGlyph").textContent = state.burst;
+  $("dwell").value = state.dwell; $("dwellVal").textContent = state.dwell;
+  $("delay").value = state.delay; $("delayVal").textContent = state.delay;
+  if(document.activeElement !== $("lowbatt")) $("lowbatt").value = state.lowbatt;
+  const cyc = state.dwell + state.delay;
+  if(state.delay === 0){ $("rofVal").textContent = "máx"; $("rofUnit").textContent = ""; }
+  else { $("rofVal").textContent = (1000/cyc).toFixed(1); $("rofUnit").textContent = "BB/s"; }
+  if(state.vbat !== null){
+    $("vbat").textContent = state.vbat.toFixed(2);
+    const low = state.lowbatt && state.vbat < state.lowbatt;
+    $("vbat").parentElement.classList.toggle("low", low);
+    $("cells").textContent = "3S · " + (state.vbat/3).toFixed(2) + " V/célula";
+  }
+}
+function renderLock(msg){
+  $("lockText").textContent = msg || (unlocked ? "Desbloqueado. As alterações são enviadas e guardadas na placa."
+    : rxChar ? "Ligado. Introduz o PIN e carrega em Desbloquear." : "Liga-te e desbloqueia com o PIN para alterar valores.");
+}
+render();
+</script>
+</body>
+</html>
