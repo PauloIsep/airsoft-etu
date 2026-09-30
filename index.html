@@ -243,12 +243,16 @@ async function connect(showAll){
     await send("STATUS");
   }catch(e){
     $("connText").textContent = "Desligado";
-    if(/service/i.test(e.message))
-      log("! o dispositivo não tem o serviço AirsoftETU (o main.py está a correr?)");
-    else if(e.name === "NotFoundError") log("! nenhum dispositivo escolhido (lista vazia ou cancelado)");
-    else log("! " + e.name + ": " + e.message);
+    log("! " + e.name + ": " + e.message);            // exact browser error, always shown
+    let why = "Não foi possível ligar.";
+    if(/service/i.test(e.message)) why = "Esse dispositivo não tem o serviço AirsoftETU. O main.py está a correr?";
+    else if(/globally disabled|not available|adapter/i.test(e.message)) why = "O Bluetooth do telemóvel está desligado ou o Chrome não tem permissão.";
+    else if(/cancel/i.test(e.message)) why = "A janela de escolha foi fechada sem escolher a placa.";
+    else if(e.name === "NotFoundError") why = "O Chrome não encontrou nenhum dispositivo. Vê as permissões em baixo.";
+    else if(e.name === "SecurityError") why = "A página tem de abrir por https:// no Chrome.";
+    renderLock(why);
+    $("lockText").classList.add("low");
     if(device && device.gatt.connected) device.gatt.disconnect();
-    renderLock("Não foi possível ligar. Vê o registo em baixo.");
   }
 }
 function onDisconnect(){
@@ -259,8 +263,14 @@ function onDisconnect(){
 }
 $("btnConnect").onclick = () => connect(false);
 $("btnScanAll").onclick = () => connect(true);
-log(navigator.bluetooth ? "pronto – Bluetooth disponível neste browser"
-                        : "! este browser não tem Web Bluetooth");
+if(!navigator.bluetooth){
+  $("btnScanAll").disabled = true;
+  log("! este browser não tem Web Bluetooth (abre no Chrome, não dentro de outra app)");
+} else {
+  log("pronto – Web Bluetooth disponível");
+  navigator.bluetooth.getAvailability && navigator.bluetooth.getAvailability()
+    .then(ok => log(ok ? "Bluetooth do telemóvel: disponível" : "! Bluetooth do telemóvel desligado ou sem permissão"));
+}
 $("btnDisconnect").onclick = () => device && device.gatt.connected && device.gatt.disconnect();
 $("btnUnlock").onclick = () => $("pin").value && send("UNLOCK " + $("pin").value);
 $("btnStatus").onclick = () => send("STATUS");
@@ -310,6 +320,7 @@ function render(){
   }
 }
 function renderLock(msg){
+  $("lockText").classList.remove("low");
   $("lockText").textContent = msg || (unlocked ? "Desbloqueado. As alterações são enviadas e guardadas na placa."
     : rxChar ? "Ligado. Introduz o PIN e carrega em Desbloquear." : "Liga-te e desbloqueia com o PIN para alterar valores.");
 }
