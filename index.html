@@ -98,8 +98,9 @@ details summary{cursor:pointer;list-style:none}
       <button class="primary" id="btnConnect">Ligar à réplica</button>
       <button id="btnDisconnect" hidden>Desligar</button>
     </div>
+    <button id="btnScanAll">Não aparece? Procurar todos os dispositivos</button>
     <div class="row">
-      <input type="password" id="pin" inputmode="numeric" maxlength="8" placeholder="PIN" autocomplete="off" aria-label="PIN">
+      <input type="password" id="pin" inputmode="numeric" maxlength="8" placeholder="PIN (só números, por defeito 1234)" autocomplete="off" aria-label="PIN">
       <button id="btnUnlock" disabled>Desbloquear</button>
     </div>
     <p class="hint" id="lockText">Liga-te e desbloqueia com o PIN para alterar valores.</p>
@@ -218,10 +219,14 @@ function handleLine(line){
 }
 
 /* ---------- connection ---------- */
-async function connect(){
+async function connect(showAll){
+  $("app").querySelector("details").open = true;
+  log(showAll ? "a procurar todos os dispositivos…" : "a procurar AirsoftETU…");
   try{
-    device = await navigator.bluetooth.requestDevice({
-      filters:[{namePrefix:"AirsoftETU"}], optionalServices:[NUS]});
+    device = await navigator.bluetooth.requestDevice(showAll
+      ? {acceptAllDevices:true, optionalServices:[NUS]}
+      : {filters:[{namePrefix:"AirsoftETU"}], optionalServices:[NUS]});
+    log("escolhido: " + (device.name || "(sem nome)") + " – a ligar…");
     device.addEventListener("gattserverdisconnected", onDisconnect);
     $("connText").textContent = "A ligar…";
     const server = await device.gatt.connect();
@@ -238,7 +243,12 @@ async function connect(){
     await send("STATUS");
   }catch(e){
     $("connText").textContent = "Desligado";
-    if(e.name !== "NotFoundError") log("! " + e.message);
+    if(/service/i.test(e.message))
+      log("! o dispositivo não tem o serviço AirsoftETU (o main.py está a correr?)");
+    else if(e.name === "NotFoundError") log("! nenhum dispositivo escolhido (lista vazia ou cancelado)");
+    else log("! " + e.name + ": " + e.message);
+    if(device && device.gatt.connected) device.gatt.disconnect();
+    renderLock("Não foi possível ligar. Vê o registo em baixo.");
   }
 }
 function onDisconnect(){
@@ -247,7 +257,10 @@ function onDisconnect(){
   $("btnConnect").hidden = false; $("btnDisconnect").hidden = true; $("btnUnlock").disabled = true;
   $("app").classList.add("offline"); renderLock(); log("desligado");
 }
-$("btnConnect").onclick = connect;
+$("btnConnect").onclick = () => connect(false);
+$("btnScanAll").onclick = () => connect(true);
+log(navigator.bluetooth ? "pronto – Bluetooth disponível neste browser"
+                        : "! este browser não tem Web Bluetooth");
 $("btnDisconnect").onclick = () => device && device.gatt.connected && device.gatt.disconnect();
 $("btnUnlock").onclick = () => $("pin").value && send("UNLOCK " + $("pin").value);
 $("btnStatus").onclick = () => send("STATUS");
